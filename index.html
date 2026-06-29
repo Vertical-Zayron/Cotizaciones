@@ -65,6 +65,25 @@ a{color:inherit;text-decoration:none}button{font-family:inherit;cursor:pointer;b
 .stale-body{display:none;padding:0 16px 16px;border-top:1px solid var(--line)}
 .stale.open .stale-body{display:block}
 .stale-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:14px}
+.sol-wrap{margin:4px 0 22px;border:1px solid #f0dcb6;border-radius:var(--r);background:linear-gradient(180deg,#fffdf8,var(--signal-soft));overflow:hidden}
+.sol-head{display:flex;align-items:center;gap:11px;padding:13px 17px;border-bottom:1px solid #f0dcb6}
+.sol-head .si{width:30px;height:30px;border-radius:9px;background:#fff;border:1px solid #f0dcb6;color:var(--signal-ink);display:grid;place-items:center;flex-shrink:0}
+.sol-head .stt{font-family:var(--font-display);font-weight:800;font-size:14.5px;color:var(--signal-ink)}
+.sol-head .sss{font-size:12px;color:var(--signal-ink);opacity:.8}
+.sol-head .cnt{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--signal-ink);background:#fff;border:1px solid #f0dcb6;border-radius:999px;padding:2px 9px}
+.sol-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:11px;padding:14px 16px 16px}
+.scard{background:#fff;border:1px solid #efe2c4;border-radius:var(--r-sm);padding:13px 14px;display:flex;flex-direction:column}
+.scard .sn{font-weight:700;font-size:14px}
+.scard .se{font-size:12px;color:var(--muted)}
+.scard .smeta{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:8px;font-family:var(--font-mono);font-size:11px;color:var(--ink-2)}
+.scard .smeta a{color:var(--eps)}
+.scard .sprod{margin-top:9px;font-size:12px;color:var(--ink-2);background:var(--signal-soft);border-radius:7px;padding:6px 9px}
+.scard .smsg{margin-top:8px;font-size:12px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.scard .sfoot{display:flex;gap:8px;margin-top:12px;align-items:center}
+.scard .sdate{font-family:var(--font-mono);font-size:10px;color:var(--faint);margin-left:auto}
+.sbtn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;font-size:12.5px;font-weight:600;border:1px solid var(--line)}
+.sbtn.go{background:var(--ink);color:#fff;border-color:var(--ink)}.sbtn.go:hover{background:#0c1620}
+.sbtn.ghost{background:#fff;color:var(--muted)}.sbtn.ghost:hover{color:var(--warn);border-color:#f0c9c7}
 .empty{text-align:center;padding:60px 20px;color:var(--faint)}.empty .ei{width:54px;height:54px;border-radius:14px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;margin:0 auto 16px;color:var(--muted)}.empty h3{font-family:var(--font-display);font-weight:700;color:var(--ink-2);font-size:17px;margin:0 0 6px}.empty p{margin:0 0 18px;font-size:14px}
 .loading{display:flex;align-items:center;justify-content:center;gap:11px;padding:60px;color:var(--muted);font-size:14px}.spin{width:16px;height:16px;border:2px solid var(--line-strong);border-top-color:var(--wave);border-radius:50%;animation:sp .7s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
 .backdrop{position:fixed;inset:0;z-index:80;background:rgba(15,24,34,.4);backdrop-filter:blur(2px);animation:fade .2s}@keyframes fade{from{opacity:0}to{opacity:1}}
@@ -142,7 +161,7 @@ const STATES=[{k:"creada",l:"Creadas",col:"#0e94a8"},{k:"aceptada",l:"Aceptadas"
 const STATE_LABEL=Object.fromEntries(STATES.map(s=>[s.k,s.l]));
 const STALE_DAYS=30;
 let SESSION={token:null,profile:null,role:"Invitado"};
-let CONTACTS=[],PROJECTS=[],CATALOG=[];
+let CONTACTS=[],PROJECTS=[],CATALOG=[],SOLICITUDES=[];
 const STATE={q:""};
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 const USE_DRIVE=()=>!!APP_CONFIG.auth.APPS_SCRIPT_URL;
@@ -164,6 +183,16 @@ function total(c){return (c.lineas||[]).reduce((s,l)=>s+(+l.cant||0)*(+l.precio|
 function fmtMoney(n,m){const s=(n||0).toLocaleString("es-CR",{minimumFractionDigits:0,maximumFractionDigits:2});return (m==="USD"?"$":"₡")+s;}
 function isStale(c){return (c.estado||"creada")!=="pagada" && ageDays(c.movido||c.created)>STALE_DAYS;}
 function matchQ(c){if(!STATE.q)return true;const q=STATE.q.toLowerCase();return [c.titulo,c.clienteNombre,c.proyectoNombre,c.notas].some(v=>v&&String(v).toLowerCase().includes(q));}
+async function loadSolicitudes(){if(!USE_DRIVE()){SOLICITUDES=[];return;}try{const r=await jsonp({action:"solicitudes"});SOLICITUDES=r.items||[];}catch(e){SOLICITUDES=[];}}
+function parseProductos(str){
+  if(!str)return[];
+  return String(str).split(";").map(t=>t.trim()).filter(Boolean).map(t=>{
+    const mm=t.match(/\[([^\]]+)\]\s*$/);const sku=mm?mm[1].trim():"";const nombre=mm?t.slice(0,mm.index).trim():t;
+    let prod=null;if(sku)prod=CATALOG.find(p=>(p.sku||"")===sku);if(!prod)prod=CATALOG.find(p=>(p.nombre||"")===nombre);
+    if(prod){const precio=(prod.requiereCotizacion||prod.precio==null||prod.precio==="")?0:Number(prod.precio);return{desc:prod.nombre+(prod.sku?` (${prod.sku})`:""),cant:1,precio,productoId:prod.id,sku:prod.sku||""};}
+    return{desc:nombre+(sku?` (${sku})`:""),cant:1,precio:0};
+  });
+}
 
 /* ════ RENDER ════ */
 function cotCard(c){
@@ -176,9 +205,34 @@ function cotCard(c){
     <div class="cb"><span class="cm">${fmtMoney(total(c),c.moneda)}</span><span class="age ${warn?'warnAge':''}">${age}d</span></div>
   </div>`;
 }
+function fmtFechaSol(iso){const d=new Date(iso);if(isNaN(d))return"";return d.toLocaleDateString("es-CR",{day:"2-digit",month:"short"})+" "+d.toLocaleTimeString("es-CR",{hour:"2-digit",minute:"2-digit"});}
+function solCard(s,i){
+  const prods=s.productos?`<div class="sprod">${esc(s.productos)}</div>`:"";
+  const msg=s.mensaje?`<div class="smsg">${esc(s.mensaje)}</div>`:"";
+  return `<div class="scard">
+    <div class="sn">${esc(s.nombre||"(sin nombre)")}</div>
+    ${s.empresa?`<div class="se">${esc(s.empresa)}</div>`:""}
+    <div class="smeta">${s.correo?`<a href="mailto:${esc(s.correo)}">${esc(s.correo)}</a>`:""}${s.telefono?`<a href="tel:${esc(s.telefono)}">${esc(s.telefono)}</a>`:""}</div>
+    ${prods}${msg}
+    <div class="sfoot">
+      <button class="sbtn go" data-soli="${i}" data-act="crear"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>Crear cotización</button>
+      <button class="sbtn ghost" data-soli="${i}" data-act="descartar" title="Marcar como procesada sin cotizar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></button>
+      <span class="sdate">${esc(fmtFechaSol(s.fecha))}</span>
+    </div>
+  </div>`;
+}
+function renderSolicitudes(){
+  if(!SOLICITUDES.length)return"";
+  return `<div class="sol-wrap"><div class="sol-head">
+    <div class="si"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+    <div><div class="stt">Solicitudes de clientes</div><div class="sss">Llegadas desde la tienda · crea la cotización para procesarlas</div></div>
+    <span class="cnt">${SOLICITUDES.length}</span></div>
+    <div class="sol-grid">${SOLICITUDES.map((s,i)=>solCard(s,i)).join("")}</div></div>`;
+}
 function render(){
   const box=$("#content");
-  if(!DB.cache.length){box.innerHTML=`<div class="empty"><div class="ei"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></div><h3>Aún no hay cotizaciones</h3><p>Crea la primera para empezar el tablero.</p><button class="btn primary" style="margin:0 auto" onclick="openForm()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>Nueva cotización</button></div>`;return;}
+  const solHtml=renderSolicitudes();
+  if(!DB.cache.length){box.innerHTML=solHtml+`<div class="empty"><div class="ei"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></div><h3>Aún no hay cotizaciones</h3><p>Crea la primera para empezar el tablero.</p><button class="btn primary" style="margin:0 auto" onclick="openForm()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>Nueva cotización</button></div>`;return;}
   const active=DB.cache.filter(c=>matchQ(c)&&!isStale(c));
   const stale=DB.cache.filter(c=>matchQ(c)&&isStale(c));
   const cols=STATES.map(s=>{
@@ -187,7 +241,7 @@ function render(){
     return `<div class="kcol"><div class="kcol-head"><span class="kbar" style="background:${s.col}"></span><span class="kl">${s.l}</span><span class="kc">${items.length}</span></div>
       <div class="kcol-body" data-state="${s.k}">${items.length?items.map(cotCard).join(""):`<div class="kempty">Suelta aquí</div>`}</div></div>`;
   }).join("");
-  let html=`<div class="kanban">${cols}</div>`;
+  let html=solHtml+`<div class="kanban">${cols}</div>`;
   if(stale.length){
     html+=`<div class="stale" id="staleBox"><div class="stale-head" id="staleHead">
       <div class="si"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
@@ -220,9 +274,24 @@ async function moveTo(id,estado){
 
 /* ════ FORM ════ */
 let editingId=null;
-function openForm(id){
+async function handleSol(i,act){
+  const s=SOLICITUDES[i];if(!s)return;
+  if(act==="descartar"){
+    if(!confirm("¿Marcar esta solicitud como procesada sin crear cotización?"))return;
+    try{await post({action:"procesarSolicitud",fecha:s.fecha});SOLICITUDES.splice(i,1);render();toast("Solicitud procesada");}catch(e){toast("Error al procesar");}
+    return;
+  }
+  // crear cotización a partir de la solicitud
+  const lineas=parseProductos(s.productos);
+  const notas=[`Solicitud desde la tienda.`,`Contacto: ${s.nombre}${s.empresa?` · ${s.empresa}`:""}`,s.correo?`Correo: ${s.correo}`:"",s.telefono?`Tel: ${s.telefono}`:"",s.mensaje?`Mensaje: ${s.mensaje}`:""].filter(Boolean).join("\n");
+  const titulo=lineas.length?("Cotización — "+s.nombre):("Solicitud — "+s.nombre);
+  openForm(null,{titulo,clienteNombre:s.nombre,notas,lineas,_solFecha:s.fecha});
+}
+function openForm(id,seed){
   editingId=id||null;
-  const c=id?DB.cache.find(x=>x.id===id):{estado:"creada",moneda:"CRC",lineas:[]};
+  const c=id?DB.cache.find(x=>x.id===id):Object.assign({estado:"creada",moneda:"CRC",lineas:[]},seed||{});
+  const seedClienteNombre=(!id&&seed&&seed.clienteNombre)?seed.clienteNombre:"";
+  const solFecha=(!id&&seed&&seed._solFecha)?seed._solFecha:null;
   let lineas=(c.lineas||[]).map(l=>Object.assign({},l));
   const estOpts=STATES.map(s=>`<option value="${s.k}" ${(c.estado||"creada")===s.k?"selected":""}>${s.l}</option>`).join("");
   const cliOpts=`<option value="">— Cliente —</option>`+CONTACTS.map(x=>`<option value="${x.id}" ${c.clienteId===x.id?"selected":""}>${esc(x.nombre)}${x.empresa?` · ${esc(x.empresa)}`:""}</option>`).join("");
@@ -282,10 +351,14 @@ function openForm(id){
     const cliId=sheet.querySelector("#f_cli").value,prjId=sheet.querySelector("#f_prj").value;
     const cli=CONTACTS.find(x=>x.id===cliId),prj=PROJECTS.find(x=>x.id===prjId);
     const nuevoEstado=sheet.querySelector("#f_estado").value;
-    const data={titulo,clienteId:cliId||"",clienteNombre:cli?cli.nombre:"",proyectoId:prjId||"",proyectoNombre:prj?prj.nombre:"",estado:nuevoEstado,moneda:moneda(),lineas:lineas.filter(l=>l.desc||l.precio),detalle:sheet.querySelector("#f_detalle").value.trim(),notas:sheet.querySelector("#f_notas").value.trim()};
-    if(id){data.id=id;data.created=c.created;data.movido=(c.estado!==nuevoEstado)?new Date().toISOString():(c.movido||c.created);Object.keys(c).filter(k=>k.startsWith("_")).forEach(k=>data[k]=c[k]);}
+    const data={titulo,clienteId:cliId||"",clienteNombre:cli?cli.nombre:seedClienteNombre,proyectoId:prjId||"",proyectoNombre:prj?prj.nombre:"",estado:nuevoEstado,moneda:moneda(),lineas:lineas.filter(l=>l.desc||l.precio),detalle:sheet.querySelector("#f_detalle").value.trim(),notas:sheet.querySelector("#f_notas").value.trim()};
+    if(id){data.id=id;data.created=c.created;data.movido=(c.estado!==nuevoEstado)?new Date().toISOString():(c.movido||c.created);Object.keys(c).filter(k=>k.startsWith("_")&&k!=="_solFecha").forEach(k=>data[k]=c[k]);}
     sheet.querySelector("#saveBtn").disabled=true;
-    try{await DB.save(data);toast(id?"Cotización actualizada":"Cotización creada");close();render();}
+    try{
+      await DB.save(data);
+      if(solFecha){try{await post({action:"procesarSolicitud",fecha:solFecha});SOLICITUDES=SOLICITUDES.filter(x=>x.fecha!==solFecha);}catch(e){}}
+      toast(id?"Cotización actualizada":"Cotización creada");close();render();
+    }
     catch(e){toast("Error al guardar");sheet.querySelector("#saveBtn").disabled=false;}
   };
   const del=sheet.querySelector("#deleteBtn");
@@ -296,7 +369,11 @@ window.openForm=openForm;
 
 function toast(html){const w=$("#toasts");const t=document.createElement("div");t.className="toast";t.innerHTML=html;w.appendChild(t);setTimeout(()=>{t.style.opacity="0";t.style.transition="opacity .3s";setTimeout(()=>t.remove(),300)},3200);}
 function bindUI(){
-  document.body.addEventListener("click",e=>{const c=e.target.closest(".cot");if(c&&!c.classList.contains("dragging"))openForm(c.dataset.id);});
+  document.body.addEventListener("click",e=>{
+    const sb=e.target.closest("[data-soli]");
+    if(sb){const i=+sb.dataset.soli;handleSol(i,sb.dataset.act);return;}
+    const c=e.target.closest(".cot");if(c&&!c.classList.contains("dragging"))openForm(c.dataset.id);
+  });
   $("#newBtn").onclick=()=>openForm();
   $("#syncBtn").onclick=async()=>{toast("Recargando…");await reload();toast("Actualizado");};
   const search=$("#search");const deb=(fn,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
@@ -306,7 +383,7 @@ function bindUI(){
   $("#signoutBtn").onclick=signOut;
   const hub=SITE.isPages?APP_CONFIG.tool.hubUrlPages:APP_CONFIG.tool.hubUrl;$("#brandLink").href=hub;$("#hubLink").href=hub;
 }
-async function reload(){await DB.load();render();}
+async function reload(){await Promise.all([DB.load(),loadSolicitudes()]);render();}
 
 const AUTH_KEY="zayron_gauth",HINT_KEY="zayron_hint";
 function saveAuth(t,e,p){try{localStorage.setItem(AUTH_KEY,JSON.stringify({token:t,exp:Date.now()+(((e||3600)-60)*1000),profile:p}))}catch(x){}}
