@@ -388,6 +388,15 @@ function openForm(id,seed){
 window.openForm=openForm;
 
 function loadHtml2pdf(){return new Promise((res,rej)=>{if(window.html2pdf)return res();const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";s.onload=()=>res();s.onerror=()=>rej(new Error("no-lib"));document.head.appendChild(s);});}
+// Condiciones de la cotización (edítalas a tu gusto)
+const CONDICIONES=[
+  "Vigencia de la oferta: 15 días naturales a partir de la fecha de emisión.",
+  "Las líneas marcadas como “Incl./Ex.” ya incluyen el IVA o están exentas; al resto se les aplica el 13%.",
+  "Forma de pago: 50% de adelanto y 50% contra entrega, salvo acuerdo distinto por escrito.",
+  "Tiempo de entrega a convenir según disponibilidad de materiales, una vez confirmado el pedido.",
+  "No incluye trabajos, materiales ni servicios que no estén detallados expresamente en esta cotización.",
+  "Cualquier cambio en el alcance puede implicar un ajuste en el precio y en el plazo de entrega."
+];
 function cotTotals(cot){const sub=(cot.lineas||[]).reduce((s,l)=>s+lineAmount(l),0);const ivaBase=(cot.lineas||[]).reduce((s,l)=>s+((l.iva!==false)?lineAmount(l):0),0);const iva=ivaBase*IVA_RATE;return{sub,iva,tot:sub+iva};}
 function buildCotHtml(cot,cli){
   const m=cot.moneda;const {sub,iva,tot}=cotTotals(cot);
@@ -405,37 +414,40 @@ function buildCotHtml(cot,cli){
   if(cli&&cli.empresa)cl.push(esc(cli.empresa));
   if(cli&&cli.correo)cl.push(esc(cli.correo));
   if(cli&&cli.telefono)cl.push(esc(cli.telefono));
-  return `<div style="width:760px;font-family:Arial,Helvetica,sans-serif;color:#16202c;padding:6px;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0e94a8;padding-bottom:13px;">
-      <div><div style="font-size:24px;font-weight:800;letter-spacing:-.5px;">Vertical Zayron</div><div style="font-size:11px;color:#61707f;margin-top:3px;">WaveSense · Epsilon Water Technology</div></div>
+  const condItems=[`Precios expresados en ${m==="USD"?"dólares estadounidenses (USD)":"colones costarricenses (CRC)"}.`].concat(CONDICIONES);
+  const cond=condItems.map(t=>`<li style="margin-bottom:4px;">${esc(t)}</li>`).join("");
+  return `<div style="width:794px;box-sizing:border-box;background:#fff;padding:48px 52px;font-family:Arial,Helvetica,sans-serif;color:#16202c;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #0e94a8;padding-bottom:13px;">
+      <div style="font-size:26px;font-weight:800;letter-spacing:-.5px;">Vertical Zayron</div>
       <div style="text-align:right;"><div style="font-size:20px;font-weight:800;color:#0e94a8;">COTIZACIÓN</div><div style="font-size:11px;color:#61707f;margin-top:4px;">N.º ${esc(num)}</div><div style="font-size:11px;color:#61707f;">${fecha}</div></div>
     </div>
-    <div style="display:flex;justify-content:space-between;margin-top:16px;font-size:12px;">
+    <div style="display:flex;justify-content:space-between;margin-top:18px;font-size:12px;">
       <div style="max-width:48%;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8c99a6;margin-bottom:5px;">Cliente</div><div style="line-height:1.55;">${cl.join("<br>")||"—"}</div></div>
       <div style="max-width:48%;text-align:right;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8c99a6;margin-bottom:5px;">Detalle</div><div style="line-height:1.55;"><b>${esc(cot.titulo)}</b>${cot.proyectoNombre?`<br>Proyecto: ${esc(cot.proyectoNombre)}`:""}</div></div>
     </div>
-    <table style="width:100%;border-collapse:collapse;margin-top:18px;font-size:11.5px;">
+    <table style="width:100%;border-collapse:collapse;margin-top:20px;font-size:11.5px;table-layout:fixed;">
       <thead><tr style="background:#16202c;color:#fff;">
-        <th style="padding:8px 6px;width:26px;">#</th><th style="padding:8px 8px;text-align:left;">Descripción</th>
-        <th style="padding:8px 6px;width:44px;">Cant.</th><th style="padding:8px 8px;text-align:right;width:92px;">P. unit.</th>
-        <th style="padding:8px 6px;width:58px;">IVA</th><th style="padding:8px 8px;text-align:right;width:100px;">Importe</th></tr></thead>
+        <th style="padding:8px 6px;width:24px;">#</th><th style="padding:8px 8px;text-align:left;">Descripción</th>
+        <th style="padding:8px 6px;width:42px;">Cant.</th><th style="padding:8px 8px;text-align:right;width:84px;">P. unit.</th>
+        <th style="padding:8px 6px;width:54px;">IVA</th><th style="padding:8px 8px;text-align:right;width:92px;">Importe</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div style="display:flex;justify-content:flex-end;margin-top:14px;"><table style="font-size:12px;min-width:280px;">
+    <div style="display:flex;justify-content:flex-end;margin-top:14px;"><table style="font-size:12px;width:280px;">
       <tr><td style="padding:4px 14px;color:#61707f;">Subtotal</td><td style="padding:4px 0;text-align:right;">${fmtMoney(sub,m)}</td></tr>
       <tr><td style="padding:4px 14px;color:#61707f;">IVA (13%)</td><td style="padding:4px 0;text-align:right;">${fmtMoney(iva,m)}</td></tr>
       <tr style="border-top:2px solid #16202c;"><td style="padding:7px 14px;font-weight:800;font-size:14px;">TOTAL</td><td style="padding:7px 0;text-align:right;font-weight:800;font-size:14px;color:#0e94a8;">${fmtMoney(tot,m)}</td></tr>
     </table></div>
     ${cot.notas?`<div style="margin-top:18px;font-size:11px;color:#2b3947;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8c99a6;margin-bottom:4px;">Notas</div><div style="line-height:1.55;white-space:pre-wrap;">${esc(cot.notas)}</div></div>`:""}
-    <div style="margin-top:22px;padding-top:10px;border-top:1px solid #e4e8ec;font-size:10px;color:#8c99a6;line-height:1.55;">Precios en ${m==="USD"?"dólares (USD)":"colones (CRC)"}. Las líneas marcadas como “Incl./Ex.” ya incluyen el IVA o están exentas, por lo que no se les aplica el 13% adicional. Cotización válida por 15 días naturales.</div>
+    <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e4e8ec;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8c99a6;margin-bottom:7px;">Condiciones</div>
+      <ol style="margin:0;padding-left:18px;font-size:10.5px;color:#2b3947;line-height:1.5;">${cond}</ol></div>
   </div>`;
 }
 function pdfFilename(cot){return `Cotizacion_${(cot.titulo||"VZayron").replace(/[^a-z0-9]+/gi,"_").slice(0,40)}.pdf`;}
 async function renderCotPdf(cot,cli,mode){
   await loadHtml2pdf();
-  const cont=document.createElement("div");cont.style.position="fixed";cont.style.left="-9999px";cont.style.top="0";cont.innerHTML=buildCotHtml(cot,cli);document.body.appendChild(cont);
+  const cont=document.createElement("div");cont.style.position="fixed";cont.style.left="0";cont.style.top="0";cont.style.zIndex="-1";cont.style.width="794px";cont.style.background="#fff";cont.style.overflow="hidden";cont.innerHTML=buildCotHtml(cot,cli);document.body.appendChild(cont);
   const fname=pdfFilename(cot);
-  const opts={margin:[10,10,12,10],filename:fname,image:{type:"jpeg",quality:.96},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}};
+  const opts={margin:0,filename:fname,image:{type:"jpeg",quality:.96},html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff",scrollX:0,scrollY:0},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},pagebreak:{mode:["css","legacy"]}};
   try{
     if(mode==="b64"){const uri=await window.html2pdf().set(opts).from(cont.firstElementChild).outputPdf("datauristring");return{b64:String(uri).split(",")[1],fname};}
     await window.html2pdf().set(opts).from(cont.firstElementChild).save();return{fname};
