@@ -102,13 +102,18 @@ a{color:inherit;text-decoration:none}button{font-family:inherit;cursor:pointer;b
 .field.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field.row2 .field{margin:0}
 .iconbtn{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;color:var(--muted);transition:.15s}.iconbtn:hover{background:var(--surface-2);color:var(--ink)}
 .lineas{border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
-.lrow{display:grid;grid-template-columns:1fr 56px 84px 30px;gap:7px;align-items:center;padding:8px;border-top:1px solid var(--line)}
+.lrow{display:grid;grid-template-columns:minmax(60px,1fr) 42px 70px 40px 24px;gap:5px;align-items:center;padding:8px;border-top:1px solid var(--line)}
 .lrow:first-child{border-top:none}
-.lrow input{padding:7px 9px;font-size:13px}
+.lrow input{padding:7px 8px;font-size:13px}
 .lrow .del{color:var(--faint);display:grid;place-items:center;height:30px}.lrow .del:hover{color:var(--warn)}
+.ivatog{height:30px;border-radius:7px;border:1px solid var(--line-strong);font-size:9.5px;font-weight:700;font-family:var(--font-mono);color:var(--faint);background:#fff;letter-spacing:.03em}
+.ivatog.on{background:var(--ok-soft);border-color:#bfe6cf;color:var(--ok)}
 .ladd{display:flex;align-items:center;gap:7px;padding:9px 10px;font-size:12.5px;color:var(--eps);font-weight:600;width:100%}.ladd:hover{background:var(--surface-2)}
-.ltot{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;border-top:1px solid var(--line);background:var(--surface-2);font-weight:700}
-.ltot .tv{font-family:var(--font-display);font-size:16px}
+.ltot{border-top:1px solid var(--line);background:var(--surface-2);padding:9px 12px}
+.ltot .ltr{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--muted);padding:3px 0}
+.ltot .ltr .tv{font-family:var(--font-mono);font-size:13px;color:var(--ink-2)}
+.ltot .ltr.grand{border-top:1px dashed var(--line-strong);margin-top:4px;padding-top:7px;color:var(--ink)}
+.ltot .ltr.grand span:first-child{font-size:13px;font-weight:700}.ltot .ltr.grand .tv{font-family:var(--font-display);font-size:17px;color:var(--ink);font-weight:800}
 .note-box{font-size:12.5px;color:var(--muted);background:var(--surface-2);border:1px dashed var(--line-strong);border-radius:var(--r-sm);padding:11px 13px}
 .gate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:24px;background:radial-gradient(900px 480px at 80% 0%,rgba(45,84,212,.10),transparent 60%),radial-gradient(800px 460px at 10% 100%,rgba(14,148,168,.12),transparent 60%),#0f1822}
 .card{width:100%;max-width:430px;background:#fff;border-radius:20px;box-shadow:var(--shadow-lg);overflow:hidden}.card .top{padding:30px 32px 22px;border-bottom:1px solid var(--line);text-align:center}.card .top .glyph{width:46px;height:46px;margin:0 auto 14px;display:block}.card .top .a{font-family:var(--font-display);font-weight:900;font-size:21px;letter-spacing:-.02em}.card .top .b{font-family:var(--font-mono);font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--faint);margin-top:6px}
@@ -179,7 +184,11 @@ async function loadRefs(){if(!USE_DRIVE())return;try{const a=await jsonp({action
 function esc(s){return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function fmtDate(d){if(!d)return"";const x=new Date(d);return isNaN(x)?"":x.toLocaleDateString("es-CR",{day:"2-digit",month:"short"});}
 function ageDays(d){if(!d)return 0;return Math.floor((Date.now()-new Date(d).getTime())/86400000);}
-function total(c){return (c.lineas||[]).reduce((s,l)=>s+(+l.cant||0)*(+l.precio||0),0);}
+const IVA_RATE=0.13;
+function lineAmount(l){return (+l.cant||0)*(+l.precio||0);}
+function total(c){return (c.lineas||[]).reduce((s,l)=>s+lineAmount(l),0);} // subtotal
+function ivaOf(c){return (c.lineas||[]).reduce((s,l)=>s+((l.iva!==false)?lineAmount(l):0),0)*IVA_RATE;}
+function grandTotal(c){return total(c)+ivaOf(c);}
 function fmtMoney(n,m){const s=(n||0).toLocaleString("es-CR",{minimumFractionDigits:0,maximumFractionDigits:2});return (m==="USD"?"$":"₡")+s;}
 function isStale(c){return (c.estado||"creada")!=="pagada" && ageDays(c.movido||c.created)>STALE_DAYS;}
 function matchQ(c){if(!STATE.q)return true;const q=STATE.q.toLowerCase();return [c.titulo,c.clienteNombre,c.proyectoNombre,c.notas].some(v=>v&&String(v).toLowerCase().includes(q));}
@@ -202,7 +211,7 @@ function cotCard(c){
     <div class="ct">${esc(c.titulo||"(sin título)")}</div>
     ${c.clienteNombre?`<div class="ccli"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>${esc(c.clienteNombre)}</div>`:""}
     ${c.proyectoNombre?`<div class="cprj">${esc(c.proyectoNombre)}</div>`:""}
-    <div class="cb"><span class="cm">${fmtMoney(total(c),c.moneda)}</span><span class="age ${warn?'warnAge':''}">${age}d</span></div>
+    <div class="cb"><span class="cm">${fmtMoney(grandTotal(c),c.moneda)}</span><span class="age ${warn?'warnAge':''}">${age}d</span></div>
   </div>`;
 }
 function fmtFechaSol(iso){const d=new Date(iso);if(isNaN(d))return"";return d.toLocaleDateString("es-CR",{day:"2-digit",month:"short"})+" "+d.toLocaleTimeString("es-CR",{hour:"2-digit",minute:"2-digit"});}
@@ -315,7 +324,7 @@ function openForm(id,seed){
         <div class="field"><label>Detalle técnico / configuración</label><textarea id="f_detalle" placeholder="Para productos complejos (p. ej. WaveSense), aquí se guardará el detalle que produce su cotizador.">${esc(c.detalle)}</textarea></div>
       </div>
     </div></div>
-    <div class="sheet-foot">${id?'<button class="btn" id="deleteBtn" style="color:var(--warn);border-color:#f0c9c7"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>Eliminar</button>':""}<div class="spacer"></div><button class="btn" id="cancelBtn">Cancelar</button><button class="btn primary" id="saveBtn">Guardar</button></div>`;
+    <div class="sheet-foot">${id?'<button class="btn" id="deleteBtn" style="color:var(--warn);border-color:#f0c9c7"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>Eliminar</button>':""}<div class="spacer"></div><button class="btn" id="mailBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/><path d="m3 6 9 7 9-7"/></svg>Enviar</button><button class="btn" id="pdfBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></svg>PDF</button><button class="btn" id="cancelBtn">Cancelar</button><button class="btn primary" id="saveBtn">Guardar</button></div>`;
   const bd=document.createElement("div");bd.className="backdrop";bd.id="backdrop";
   document.body.appendChild(bd);document.body.appendChild(sheet);
   const close=()=>{sheet.remove();bd.remove();editingId=null;};
@@ -323,13 +332,15 @@ function openForm(id,seed){
   const moneda=()=>sheet.querySelector("#f_moneda").value;
   function renderLineas(){
     const box=sheet.querySelector("#lineasBox");
-    const rows=lineas.map((l,i)=>`<div class="lrow"><input data-f="desc" data-i="${i}" value="${esc(l.desc)}" placeholder="Descripción"><input data-f="cant" data-i="${i}" type="number" min="0" value="${l.cant!=null?l.cant:1}" placeholder="Cant"><input data-f="precio" data-i="${i}" type="number" min="0" value="${l.precio!=null?l.precio:0}" placeholder="Precio"><button class="del" data-del="${i}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2m1 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></div>`).join("");
-    const tot=lineas.reduce((s,l)=>s+(+l.cant||0)*(+l.precio||0),0);
-    box.innerHTML=rows+`<button class="ladd" id="addLinea"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>Agregar línea</button><div class="ltot"><span>Total</span><span class="tv">${fmtMoney(tot,moneda())}</span></div>`;
-    box.querySelector("#addLinea").onclick=()=>{lineas.push({desc:"",cant:1,precio:0});renderLineas();};
+    const rows=lineas.map((l,i)=>`<div class="lrow"><input data-f="desc" data-i="${i}" value="${esc(l.desc)}" placeholder="Descripción"><input data-f="cant" data-i="${i}" type="number" min="0" value="${l.cant!=null?l.cant:1}" placeholder="Cant"><input data-f="precio" data-i="${i}" type="number" min="0" value="${l.precio!=null?l.precio:0}" placeholder="Precio"><button class="ivatog ${l.iva!==false?"on":""}" data-iva="${i}" title="Aplicar IVA 13% a esta línea">IVA</button><button class="del" data-del="${i}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2m1 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></div>`).join("");
+    box.innerHTML=rows+`<button class="ladd" id="addLinea"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>Agregar línea</button>
+      <div class="ltot"><div class="ltr"><span>Subtotal</span><span class="tv" id="ltSub"></span></div><div class="ltr"><span>IVA (13%)</span><span class="tv" id="ltIva"></span></div><div class="ltr grand"><span>Total</span><span class="tv" id="ltTot"></span></div></div>`;
+    box.querySelector("#addLinea").onclick=()=>{lineas.push({desc:"",cant:1,precio:0,iva:true});renderLineas();};
     box.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{lineas.splice(+b.dataset.del,1);renderLineas();});
+    box.querySelectorAll("[data-iva]").forEach(b=>b.onclick=()=>{const i=+b.dataset.iva;lineas[i].iva=(lineas[i].iva===false);b.classList.toggle("on",lineas[i].iva!==false);renderTot();});
     box.querySelectorAll("input[data-f]").forEach(inp=>inp.addEventListener("input",()=>{const i=+inp.dataset.i,f=inp.dataset.f;lineas[i][f]=f==="desc"?inp.value:(+inp.value||0);if(f!=="desc")renderTot();}));
-    function renderTot(){const t=lineas.reduce((s,l)=>s+(+l.cant||0)*(+l.precio||0),0);box.querySelector(".tv").textContent=fmtMoney(t,moneda());}
+    renderTot();
+    function renderTot(){const m=moneda();const sub=lineas.reduce((s,l)=>s+lineAmount(l),0);const iva=lineas.reduce((s,l)=>s+((l.iva!==false)?lineAmount(l):0),0)*IVA_RATE;box.querySelector("#ltSub").textContent=fmtMoney(sub,m);box.querySelector("#ltIva").textContent=fmtMoney(iva,m);box.querySelector("#ltTot").textContent=fmtMoney(sub+iva,m);}
   }
   renderLineas();
   sheet.querySelector("#f_moneda").addEventListener("change",renderLineas);
@@ -363,9 +374,105 @@ function openForm(id,seed){
   };
   const del=sheet.querySelector("#deleteBtn");
   if(del)del.onclick=async()=>{if(!confirm("¿Eliminar esta cotización?"))return;try{await DB.remove(id);toast("Eliminada");close();render();}catch(e){toast("Error al eliminar");}};
+  function gatherCot(){
+    const titulo=sheet.querySelector("#f_titulo").value.trim()||"Cotización";
+    const cliId=sheet.querySelector("#f_cli").value,prjId=sheet.querySelector("#f_prj").value;
+    const cli=CONTACTS.find(x=>x.id===cliId),prj=PROJECTS.find(x=>x.id===prjId);
+    const cot={id:id||"",titulo,moneda:moneda(),clienteId:cliId,clienteNombre:cli?cli.nombre:seedClienteNombre,proyectoNombre:prj?prj.nombre:"",notas:sheet.querySelector("#f_notas").value.trim(),lineas:lineas.filter(l=>l.desc||l.precio),created:c.created};
+    return {cot,cli};
+  }
+  sheet.querySelector("#pdfBtn").onclick=()=>{const {cot,cli}=gatherCot();if(!cot.lineas.length){toast("Agrega al menos una línea para el PDF");return;}generarPDF(cot,cli);};
+  sheet.querySelector("#mailBtn").onclick=()=>{const {cot,cli}=gatherCot();if(!cot.lineas.length){toast("Agrega al menos una línea para enviar");return;}enviarPorCorreo(cot,cli);};
   setTimeout(()=>sheet.querySelector("#f_titulo").focus(),120);
 }
 window.openForm=openForm;
+
+function loadHtml2pdf(){return new Promise((res,rej)=>{if(window.html2pdf)return res();const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";s.onload=()=>res();s.onerror=()=>rej(new Error("no-lib"));document.head.appendChild(s);});}
+function cotTotals(cot){const sub=(cot.lineas||[]).reduce((s,l)=>s+lineAmount(l),0);const ivaBase=(cot.lineas||[]).reduce((s,l)=>s+((l.iva!==false)?lineAmount(l):0),0);const iva=ivaBase*IVA_RATE;return{sub,iva,tot:sub+iva};}
+function buildCotHtml(cot,cli){
+  const m=cot.moneda;const {sub,iva,tot}=cotTotals(cot);
+  const fecha=new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"long",year:"numeric"});
+  const num=(cot.id||("COT-"+Date.now().toString(36))).toUpperCase();
+  const rows=cot.lineas.map((l,i)=>`<tr style="border-bottom:1px solid #e4e8ec;">
+    <td style="padding:7px 6px;text-align:center;color:#61707f;">${i+1}</td>
+    <td style="padding:7px 8px;">${esc(l.desc||"")}</td>
+    <td style="padding:7px 6px;text-align:center;">${(+l.cant||0)}</td>
+    <td style="padding:7px 8px;text-align:right;">${fmtMoney(+l.precio||0,m)}</td>
+    <td style="padding:7px 6px;text-align:center;color:${l.iva!==false?"#1e9e63":"#8c99a6"};font-size:10.5px;">${l.iva!==false?"13%":"Incl./Ex."}</td>
+    <td style="padding:7px 8px;text-align:right;font-weight:600;">${fmtMoney(lineAmount(l),m)}</td></tr>`).join("");
+  const cl=[];
+  if(cot.clienteNombre)cl.push(`<b>${esc(cot.clienteNombre)}</b>`);
+  if(cli&&cli.empresa)cl.push(esc(cli.empresa));
+  if(cli&&cli.correo)cl.push(esc(cli.correo));
+  if(cli&&cli.telefono)cl.push(esc(cli.telefono));
+  return `<div style="width:760px;font-family:Arial,Helvetica,sans-serif;color:#16202c;padding:6px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0e94a8;padding-bottom:13px;">
+      <div><div style="font-size:24px;font-weight:800;letter-spacing:-.5px;">Vertical Zayron</div><div style="font-size:11px;color:#61707f;margin-top:3px;">WaveSense · Epsilon Water Technology</div></div>
+      <div style="text-align:right;"><div style="font-size:20px;font-weight:800;color:#0e94a8;">COTIZACIÓN</div><div style="font-size:11px;color:#61707f;margin-top:4px;">N.º ${esc(num)}</div><div style="font-size:11px;color:#61707f;">${fecha}</div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:16px;font-size:12px;">
+      <div style="max-width:48%;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8c99a6;margin-bottom:5px;">Cliente</div><div style="line-height:1.55;">${cl.join("<br>")||"—"}</div></div>
+      <div style="max-width:48%;text-align:right;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8c99a6;margin-bottom:5px;">Detalle</div><div style="line-height:1.55;"><b>${esc(cot.titulo)}</b>${cot.proyectoNombre?`<br>Proyecto: ${esc(cot.proyectoNombre)}`:""}</div></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-top:18px;font-size:11.5px;">
+      <thead><tr style="background:#16202c;color:#fff;">
+        <th style="padding:8px 6px;width:26px;">#</th><th style="padding:8px 8px;text-align:left;">Descripción</th>
+        <th style="padding:8px 6px;width:44px;">Cant.</th><th style="padding:8px 8px;text-align:right;width:92px;">P. unit.</th>
+        <th style="padding:8px 6px;width:58px;">IVA</th><th style="padding:8px 8px;text-align:right;width:100px;">Importe</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="display:flex;justify-content:flex-end;margin-top:14px;"><table style="font-size:12px;min-width:280px;">
+      <tr><td style="padding:4px 14px;color:#61707f;">Subtotal</td><td style="padding:4px 0;text-align:right;">${fmtMoney(sub,m)}</td></tr>
+      <tr><td style="padding:4px 14px;color:#61707f;">IVA (13%)</td><td style="padding:4px 0;text-align:right;">${fmtMoney(iva,m)}</td></tr>
+      <tr style="border-top:2px solid #16202c;"><td style="padding:7px 14px;font-weight:800;font-size:14px;">TOTAL</td><td style="padding:7px 0;text-align:right;font-weight:800;font-size:14px;color:#0e94a8;">${fmtMoney(tot,m)}</td></tr>
+    </table></div>
+    ${cot.notas?`<div style="margin-top:18px;font-size:11px;color:#2b3947;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8c99a6;margin-bottom:4px;">Notas</div><div style="line-height:1.55;white-space:pre-wrap;">${esc(cot.notas)}</div></div>`:""}
+    <div style="margin-top:22px;padding-top:10px;border-top:1px solid #e4e8ec;font-size:10px;color:#8c99a6;line-height:1.55;">Precios en ${m==="USD"?"dólares (USD)":"colones (CRC)"}. Las líneas marcadas como “Incl./Ex.” ya incluyen el IVA o están exentas, por lo que no se les aplica el 13% adicional. Cotización válida por 15 días naturales.</div>
+  </div>`;
+}
+function pdfFilename(cot){return `Cotizacion_${(cot.titulo||"VZayron").replace(/[^a-z0-9]+/gi,"_").slice(0,40)}.pdf`;}
+async function renderCotPdf(cot,cli,mode){
+  await loadHtml2pdf();
+  const cont=document.createElement("div");cont.style.position="fixed";cont.style.left="-9999px";cont.style.top="0";cont.innerHTML=buildCotHtml(cot,cli);document.body.appendChild(cont);
+  const fname=pdfFilename(cot);
+  const opts={margin:[10,10,12,10],filename:fname,image:{type:"jpeg",quality:.96},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}};
+  try{
+    if(mode==="b64"){const uri=await window.html2pdf().set(opts).from(cont.firstElementChild).outputPdf("datauristring");return{b64:String(uri).split(",")[1],fname};}
+    await window.html2pdf().set(opts).from(cont.firstElementChild).save();return{fname};
+  }finally{cont.remove();}
+}
+async function generarPDF(cot,cli){toast("Generando PDF…");try{await renderCotPdf(cot,cli,"save");toast("PDF generado");}catch(e){toast("Error al generar el PDF");}}
+function enviarPorCorreo(cot,cli){
+  const correoPre=(cli&&cli.correo)?cli.correo:"";
+  const saludo=`Estimado/a ${cot.clienteNombre||"cliente"}:\n\nAdjunto la cotización solicitada. Quedamos atentos a cualquier consulta o ajuste que requiera.\n\nSaludos cordiales,\nVertical Zayron`;
+  const m=document.createElement("div");m.className="modal";m.id="mailModal";m.style.width="520px";
+  const bd=document.createElement("div");bd.className="backdrop";document.body.appendChild(bd);document.body.appendChild(m);
+  const close=()=>{m.remove();bd.remove();};
+  bd.onclick=close;
+  m.innerHTML=`<div class="sheet-head"><h2>Enviar cotización por correo</h2><button class="iconbtn" id="mClose"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="sheet-body">
+      <div class="field"><label>Para <span class="req">*</span></label><input id="m_to" value="${esc(correoPre)}" placeholder="correo@cliente.com"></div>
+      <div class="field"><label>Asunto</label><input id="m_sub" value="${esc("Cotización — "+(cot.titulo||"Vertical Zayron"))}"></div>
+      <div class="field"><label>Mensaje</label><textarea id="m_msg" style="min-height:130px">${esc(saludo)}</textarea></div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);cursor:pointer"><input type="checkbox" id="m_cc" checked> Enviarme una copia</label>
+      <div class="note-box" style="margin-top:12px">Se adjunta el PDF de la cotización. El correo se envía desde la cuenta de la empresa.</div>
+    </div>
+    <div class="sheet-foot"><div class="spacer"></div><button class="btn" id="mCancel">Cancelar</button><button class="btn primary" id="mSend">Enviar</button></div>`;
+  m.querySelector("#mClose").onclick=close;m.querySelector("#mCancel").onclick=close;
+  m.querySelector("#mSend").onclick=async()=>{
+    const to=m.querySelector("#m_to").value.trim();
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)){toast("Correo no válido");return;}
+    const btn=m.querySelector("#mSend");btn.disabled=true;btn.textContent="Generando…";
+    try{
+      const {b64,fname}=await renderCotPdf(cot,cli,"b64");
+      btn.textContent="Enviando…";
+      const body={action:"enviarCotizacion",to,asunto:m.querySelector("#m_sub").value.trim(),mensaje:m.querySelector("#m_msg").value,pdf:b64,filename:fname};
+      if(m.querySelector("#m_cc").checked&&SESSION.profile&&SESSION.profile.email)body.cc=SESSION.profile.email;
+      await post(body);
+      toast("Cotización enviada a "+to);close();
+    }catch(e){toast("No se pudo enviar");btn.disabled=false;btn.textContent="Enviar";}
+  };
+}
 
 function toast(html){const w=$("#toasts");const t=document.createElement("div");t.className="toast";t.innerHTML=html;w.appendChild(t);setTimeout(()=>{t.style.opacity="0";t.style.transition="opacity .3s";setTimeout(()=>t.remove(),300)},3200);}
 function bindUI(){
