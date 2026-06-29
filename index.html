@@ -69,6 +69,12 @@ a{color:inherit;text-decoration:none}button{font-family:inherit;cursor:pointer;b
 .loading{display:flex;align-items:center;justify-content:center;gap:11px;padding:60px;color:var(--muted);font-size:14px}.spin{width:16px;height:16px;border:2px solid var(--line-strong);border-top-color:var(--wave);border-radius:50%;animation:sp .7s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
 .backdrop{position:fixed;inset:0;z-index:80;background:rgba(15,24,34,.4);backdrop-filter:blur(2px);animation:fade .2s}@keyframes fade{from{opacity:0}to{opacity:1}}
 .sheet{position:fixed;top:0;right:0;bottom:0;z-index:90;width:480px;max-width:94vw;background:#fff;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;animation:slide .25s cubic-bezier(.2,.7,.2,1)}@keyframes slide{from{transform:translateX(100%)}to{transform:none}}
+.modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:90;width:820px;max-width:95vw;max-height:92vh;background:#fff;border-radius:16px;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;overflow:hidden;animation:pop .2s cubic-bezier(.2,.7,.2,1)}
+@keyframes pop{from{opacity:0;transform:translate(-50%,-47%) scale(.97)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.modal-grid .col{padding:20px 22px}.modal-grid .col.left{border-right:1px solid var(--line)}
+.modal-grid .col h4{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin:0 0 13px;font-weight:600}
+@media(max-width:760px){.modal-grid{grid-template-columns:1fr}.modal-grid .col.left{border-right:none;border-bottom:1px solid var(--line)}}
 .sheet-head{display:flex;align-items:center;gap:12px;padding:20px 22px;border-bottom:1px solid var(--line)}.sheet-head h2{font-family:var(--font-display);font-weight:800;font-size:18px;letter-spacing:-.02em;flex:1}
 .sheet-body{flex:1;overflow:auto;padding:20px 22px}.sheet-foot{display:flex;gap:10px;padding:16px 22px;border-top:1px solid var(--line);background:var(--surface-2)}.sheet-foot .spacer{flex:1}
 .field{margin-bottom:15px}.field label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:6px}.field label .req{color:var(--warn)}
@@ -136,7 +142,7 @@ const STATES=[{k:"creada",l:"Creadas",col:"#0e94a8"},{k:"aceptada",l:"Aceptadas"
 const STATE_LABEL=Object.fromEntries(STATES.map(s=>[s.k,s.l]));
 const STALE_DAYS=30;
 let SESSION={token:null,profile:null,role:"Invitado"};
-let CONTACTS=[],PROJECTS=[];
+let CONTACTS=[],PROJECTS=[],CATALOG=[];
 const STATE={q:""};
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 const USE_DRIVE=()=>!!APP_CONFIG.auth.APPS_SCRIPT_URL;
@@ -150,7 +156,7 @@ const DB={cache:[],_mem:[],
   async save(c){const isNew=!c.id;if(isNew){c.id="q_"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);c.created=new Date().toISOString();if(!c.movido)c.movido=c.created;}c.updated=new Date().toISOString();const i=this.cache.findIndex(x=>x.id===c.id);if(i>=0)this.cache[i]=c;else this.cache.push(c);if(USE_DRIVE()){const cp=Object.assign({},c);delete cp.id;await post({action:"save",collection:APP_CONFIG.tool.collection,id:c.id,data:cp});}else lsSet(this.cache);return c;},
   async remove(id){this.cache=this.cache.filter(x=>x.id!==id);if(USE_DRIVE())await post({action:"delete",collection:APP_CONFIG.tool.collection,id});else lsSet(this.cache);}
 };
-async function loadRefs(){if(!USE_DRIVE())return;try{const a=await jsonp({action:"list",collection:"contactos"});CONTACTS=(a.items||[]).map(it=>Object.assign({id:it.id},it.data||{})).filter(c=>!c._revisar).sort((x,y)=>(x.nombre||"").localeCompare(y.nombre||""));}catch(e){CONTACTS=[];}try{const b=await jsonp({action:"list",collection:"proyectos"});PROJECTS=(b.items||[]).map(it=>Object.assign({id:it.id},it.data||{}));}catch(e){PROJECTS=[];}}
+async function loadRefs(){if(!USE_DRIVE())return;try{const a=await jsonp({action:"list",collection:"contactos"});CONTACTS=(a.items||[]).map(it=>Object.assign({id:it.id},it.data||{})).filter(c=>!c._revisar).sort((x,y)=>(x.nombre||"").localeCompare(y.nombre||""));}catch(e){CONTACTS=[];}try{const b=await jsonp({action:"list",collection:"proyectos"});PROJECTS=(b.items||[]).map(it=>Object.assign({id:it.id},it.data||{}));}catch(e){PROJECTS=[];}try{const d=await jsonp({action:"list",collection:"productos"});CATALOG=(d.items||[]).map(it=>Object.assign({id:it.id},it.data||{})).sort((x,y)=>(x.nombre||"").localeCompare(y.nombre||""));}catch(e){CATALOG=[];}}
 function esc(s){return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function fmtDate(d){if(!d)return"";const x=new Date(d);return isNaN(x)?"":x.toLocaleDateString("es-CR",{day:"2-digit",month:"short"});}
 function ageDays(d){if(!d)return 0;return Math.floor((Date.now()-new Date(d).getTime())/86400000);}
@@ -221,17 +227,25 @@ function openForm(id){
   const estOpts=STATES.map(s=>`<option value="${s.k}" ${(c.estado||"creada")===s.k?"selected":""}>${s.l}</option>`).join("");
   const cliOpts=`<option value="">— Cliente —</option>`+CONTACTS.map(x=>`<option value="${x.id}" ${c.clienteId===x.id?"selected":""}>${esc(x.nombre)}${x.empresa?` · ${esc(x.empresa)}`:""}</option>`).join("");
   const prjOpts=`<option value="">— Proyecto (opcional) —</option>`+PROJECTS.map(x=>`<option value="${x.id}" ${c.proyectoId===x.id?"selected":""}>${esc(x.nombre)}</option>`).join("");
-  const sheet=document.createElement("div");sheet.className="sheet";sheet.id="sheet";
+  const catOpts=`<option value="">+ Agregar producto del catálogo…</option>`+CATALOG.map(p=>`<option value="${p.id}">${esc(p.nombre)}${p.sku?` · ${esc(p.sku)}`:""}${p.requiereCotizacion?" · (cotizar)":(p.precio!=null&&p.precio!==""?" · "+esc(fmtMoney(p.precio,p.moneda)):"")}</option>`).join("");
+  const sheet=document.createElement("div");sheet.className="modal";sheet.id="sheet";
   sheet.innerHTML=`<div class="sheet-head"><h2>${id?"Editar cotización":"Nueva cotización"}</h2><button class="iconbtn" id="closeSheet"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
-    <div class="sheet-body">
-      <div class="field"><label>Título <span class="req">*</span></label><input id="f_titulo" value="${esc(c.titulo)}" placeholder="Ej. Suministro e instalación..."></div>
-      <div class="field"><label>Cliente</label><select id="f_cli">${cliOpts}</select></div>
-      <div class="field"><label>Proyecto</label><select id="f_prj">${prjOpts}</select></div>
-      <div class="field row2"><div class="field"><label>Estado</label><select id="f_estado">${estOpts}</select></div><div class="field"><label>Moneda</label><select id="f_moneda"><option value="CRC" ${c.moneda!=="USD"?"selected":""}>Colones (₡)</option><option value="USD" ${c.moneda==="USD"?"selected":""}>Dólares ($)</option></select></div></div>
-      <div class="field"><label>Productos / líneas</label><div class="lineas" id="lineasBox"></div></div>
-      <div class="field"><label>Detalle técnico / configuración</label><textarea id="f_detalle" placeholder="Para productos complejos (p. ej. WaveSense), aquí se guardará el detalle que produce su cotizador.">${esc(c.detalle)}</textarea><div class="note-box" style="margin-top:8px">El catálogo de productos está pendiente. Por ahora las líneas se agregan a mano; los cotizadores complejos guardarán aquí su archivo de detalle.</div></div>
-      <div class="field"><label>Notas</label><textarea id="f_notas" placeholder="Condiciones, validez…">${esc(c.notas)}</textarea></div>
-    </div>
+    <div class="sheet-body"><div class="modal-grid">
+      <div class="col left">
+        <h4>Datos generales</h4>
+        <div class="field"><label>Título <span class="req">*</span></label><input id="f_titulo" value="${esc(c.titulo)}" placeholder="Ej. Suministro e instalación..."></div>
+        <div class="field"><label>Cliente</label><select id="f_cli">${cliOpts}</select></div>
+        <div class="field"><label>Proyecto</label><select id="f_prj">${prjOpts}</select></div>
+        <div class="field row2"><div class="field"><label>Estado</label><select id="f_estado">${estOpts}</select></div><div class="field"><label>Moneda</label><select id="f_moneda"><option value="CRC" ${c.moneda!=="USD"?"selected":""}>Colones (₡)</option><option value="USD" ${c.moneda==="USD"?"selected":""}>Dólares ($)</option></select></div></div>
+        <div class="field"><label>Notas</label><textarea id="f_notas" placeholder="Condiciones, validez…" style="min-height:90px">${esc(c.notas)}</textarea></div>
+      </div>
+      <div class="col right">
+        <h4>Productos y líneas</h4>
+        <div class="field"><label>Agregar desde el catálogo</label>${CATALOG.length?`<select id="f_catSel">${catOpts}</select>`:`<div class="note-box">Aún no hay productos en el catálogo. Créalos en la herramienta de Catálogo.</div>`}</div>
+        <div class="field"><div class="lineas" id="lineasBox"></div></div>
+        <div class="field"><label>Detalle técnico / configuración</label><textarea id="f_detalle" placeholder="Para productos complejos (p. ej. WaveSense), aquí se guardará el detalle que produce su cotizador.">${esc(c.detalle)}</textarea></div>
+      </div>
+    </div></div>
     <div class="sheet-foot">${id?'<button class="btn" id="deleteBtn" style="color:var(--warn);border-color:#f0c9c7"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>Eliminar</button>':""}<div class="spacer"></div><button class="btn" id="cancelBtn">Cancelar</button><button class="btn primary" id="saveBtn">Guardar</button></div>`;
   const bd=document.createElement("div");bd.className="backdrop";bd.id="backdrop";
   document.body.appendChild(bd);document.body.appendChild(sheet);
@@ -250,6 +264,18 @@ function openForm(id){
   }
   renderLineas();
   sheet.querySelector("#f_moneda").addEventListener("change",renderLineas);
+  const catSel=sheet.querySelector("#f_catSel");
+  if(catSel)catSel.addEventListener("change",()=>{
+    const p=CATALOG.find(x=>x.id===catSel.value);
+    if(p){
+      const precio=(p.requiereCotizacion||p.precio==null||p.precio==="")?0:Number(p.precio);
+      lineas.push({desc:p.nombre+(p.sku?` (${p.sku})`:""),cant:1,precio,productoId:p.id,sku:p.sku||""});
+      renderLineas();
+      if(p.requiereCotizacion)toast("Producto por cotización: ingresa el precio a mano");
+      else if(p.moneda&&p.moneda!==moneda())toast("Ojo: el producto está en "+p.moneda+" y la cotización en "+moneda());
+    }
+    catSel.value="";
+  });
   sheet.querySelector("#saveBtn").onclick=async()=>{
     const titulo=sheet.querySelector("#f_titulo").value.trim();
     if(!titulo){toast("El título es obligatorio");return;}
